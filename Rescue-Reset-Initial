@@ -1,0 +1,211 @@
+	//http://pastebin.com/iw3eRHNP
+
+    How to install OpenWrt on a D-Link 505L:
+     
+     
+    A. Download the latest D-Link 505L firmware (just in case)
+    http://support.dlink.com/ProductInfo.aspx?m=DIR-505L
+    (2012/10/29) ea3a0d0a dir505L_fw_101.bin
+     
+     
+    B. Download the latest OpenWrt firmware for DIR-505L
+    http://downloads.openwrt.org/snapshots/trunk/ar71xx/
+    (2014/04/17) 99e289c3 OpenWrt-ar71xx-generic-dir-505-a1-squashfs-factory.bin
+    (2014/04/17) 9f041f8b OpenWrt-ar71xx-generic-dir-505-a1-squashfs-sysupgrade.bin
+     
+     
+    C. Restart the router and flash the firmware in emergency restore mode
+    http://forums.dlink.com/index.php?topic=44909.msg162511#msg162511
+    1. Make sure the router is unplugged.
+    2. Plug an ethernet cable from your router to your computer
+    3. Set your PC to have a static IP of 192.168.0.2 and subnet mask of 255.255.255.0
+       - Control Panel -> Network and Internet -> Network Connections
+       - Right click on your ethernet adapter -> Properties
+       - TCP/IPv4 -> Properties
+       - IP address: 192.168.0.2
+       - Subnet mask: 255.255.255.0
+       - Default gateway: blank
+       - Preferred DNS server: blank
+       - Alternate DNS server: blank
+    4. Press and hold the RESET button of the DIR-505L for ~5 seconds. Continue
+       holding the RESET button, and plug the router into a power outlet.
+       Continue holding the RESET button for ~10 seconds, or so, then let go.
+    5. Open a web browser to 192.168.0.1. You should see an EMERGENCY FLASHING page.
+       Click browse/upload, locate the *dir-505*-factory.bin, and upload it. If the
+       firmware is note accepted, see the NOTE below.
+    6. Give the router ~several~ minutes to flash the firmware. When it's done,
+       unplug the router from the power outlet. Don't unplug the ethernet cable yet,
+       we will need to communicate with the router via ethernet cable until we can
+       turn the wifi on in the OpenWrt settings.
+    7. Go back to your TCP/IPv4 properties and set your settings back to "Obtain an
+       IP address automatically", and "Obtain DNS server address automatically".
+       Plug the router back into the power outlet.
+    8. Open up a commandline window and try to "ping 192.168.1.1". If you get a
+       response, we can communicate with the router. Onto the next step.
+     
+    NOTE: If the firmware is not accepted, you may have to slightly hex edit the
+    OpenWrt *dir-505*-factory.bin. If you open the official firmware in a hex editor
+    (dir505L_fw_101.bin), you will notice that it says, "505LA1" somewhere around
+    hex offset 0x30. That is your model number. If you look at the same offset in
+    your OpenWrt firmware (*dir-505*-factory.bin), you will notice it says, "505A1",
+    instead. This is an older model number. Simply change the "505A1" into a
+    "505LA1". See below for an example.
+     
+    dir505L_fw_101.bin:
+    0x0030      52 35 30 35 4C 41 31 2D 33 00 00 00 00 00 44 45     R505LA1-3.....DE
+     
+    (old) *dir-505*-factory.bin:
+    0x0030      52 35 30 35 41 31 2D 33 00 00 00 00 00 00 44 45     R505A1-3......DE
+     
+    (new) *dir-505*-factory.bin:
+    0x0030      52 35 30 35 4C 41 31 2D 33 00 00 00 00 00 44 45     R505LA1-3.....DE
+     
+     
+    D. Open a telnet session with your router
+    http://wiki.openwrt.org/doc/howto/firstlogin
+    1. Open up a commandline window and do,
+           telnet 192.168.1.1
+    2. If you connect to the router, set a new password for root by typing,
+           passwd
+    3. Once your new password is set, telnet will be disabled and ssh will be
+       enabled. Go ahead and type "exit" to quit your telnet session, and then open
+       up a new ssh session with 192.168.1.1 using your favorite SSH client/utility.
+     
+     
+    E. Open an SSH session with your router and configure the network
+    http://wiki.openwrt.org/doc/howto/firstlogin
+    http://wiki.openwrt.org/doc/howto/basic.config
+    http://wiki.openwrt.org/doc/uci/wireless
+    http://wiki.openwrt.org/doc/howto/internet.connection
+    http://wiki.openwrt.org/doc/uci/network
+    http://wiki.openwrt.org/doc/howto/luci.essentials
+    1. Open a new ssh session with 192.168.1.1 as user root,
+           ssh root@192.168.1.1
+    2. If you successfully open an ssh connection, go to step 3. If you get a
+       "connection refused" error, see the NOTE below.
+    3. It's time to set up the network. In your SSH terminal, run the following
+       commands to set up your router's ethernet (eth1) to connect to the internet
+       and split your router's LAN and WAN.
+           uci set network.wan=interface
+           uci set network.wan.proto=dhcp
+           uci set network.wan.ifname=eth1
+           uci del network.lan.ifname
+           uci commit
+    4. Now enable wifi by running these commands.
+           uci set wireless.@wifi-device[0].disabled=0
+           uci commit wireless
+           wifi
+    5. You can disconnect the ethernet cable from the router to your computer. Plug
+       your internet ethernet cable into the router, and then connect to the new
+       "OpenWrt" wifi hotspot.
+    6. You may have to power cycle the router, your modem, or both, but eventually
+       you should have the internet plugged into the DIR-505L via ethernet, you
+       should be connected to the "OpenWrt" wifi hotspot, and you should be able to
+       use the internet. Now it's time to install the web gui, LuCI.
+     
+    NOTE: If you get a "connection refused" error, wait a few minutes and try,
+    again. It can take a few minutes for the SSH server to begin working after
+    telnet shuts down. If you can neither connect through telnet or ssh, you may
+    need to do a factory reset. You can try to repeat the steps to get to the
+    EMERGENCY FLASH page, or you can use OpenWrt's built-in failsafe mode. Activate
+    failsafe mode by repeatedly pressing the WPS button on the DIR-505L as soon as
+    you plug it into a power outlet. Failsafe mode will ~NOT~ activate if anything
+    is plugged into the router's ethernet port, so make sure you unplug your
+    ethernet cable before trying to activate failsafe mode. If failsafe mode
+    activates, the green power LED should begin to flash ~very~ rapidly. You will
+    then need to change your ethernet adapter's IP address, similar to before. Set
+    your IP address to 192.168.1.2 with subnet mask 255.255.255.0. You should be
+    able to open a telnet session with 192.168.1.1. Once in failsafe mode with a
+    telnet session open, you should follow the steps, here.
+    http://wiki.openwrt.org/doc/howto/generic.failsafe#in.failsafe.mode
+     
+    Use these commands in the telnet session to factory reset and reboot your
+    OpenWrt router.
+    mount_root
+    firstboot
+    mtd -r erase rootfs_data
+     
+    When the router reboots, you'll repeat the process like you just flashed a new
+    OpenWrt. Return your ethernet adapter settings to obtain an IP address and DNS
+    automatically, open a telnet session, use passwd, and try to open an ssh
+    session, again. Continue from the ssh session. If you get "connection refused",
+    again, you may have to delete your SSH authentication certificates. On a *nix
+    system, these might be found in the folder, "~/.ssh/". I had this problem, and I
+    was able to connect via SSH once I deleted ~/.ssh/known_hosts.
+     
+     
+    F. Install the web GUI, LuCI
+    1. You should be connected to your router via wifi. SSH to your router, located
+       at 192.168.1.1, and run the folllowing commands to install LuCI.
+           opkg update
+           opkg install luci-ssl
+    2. When the installation is successful, run these commands to start the web gui
+       and enable it on router boot.
+           /etc/init.d/uhttpd start
+           /etc/init.d/uhttpd enable
+    3. Open your browser to 192.168.1.1, and login to your new web GUI. We're going
+       to update the version of OpenWrt, now by using LuCI to flash the
+       *dir-505*-sysupgrade.bin.
+    4. Once logged into the web gui, go to System > Backup / Flash Firmware. Flash
+       your *dir-505*-sysupgrade.bin, and make sure to check, "Keep settings".
+    5. When the firmware is flashed and the router reboots, you need to re-enable
+       the LuCI web gui. After reconnecting to the "OpenWrt" wifi hotspot, simply
+       open an ssh connection to your router (ssh root@192.168.1.1), and run these
+       commands, again.
+           opkg update
+           opkg install luci-ssl
+           /etc/init.d/uhttpd start
+           /etc/init.d/uhttpd enable
+    6. Finally, you can exit the ssh session, point your browser to 192.168.1.1,
+       login to your web gui, and configure your router to your liking.
+     
+     
+    G. Set your router to reboot once per week
+    http://www.smallbusinesstech.net/more-complicated-instructions/openwrt/configuring-openwrt-to-automatically-reboot-every-week-1
+    1. If you don't need the router to be connected to the internet without
+       interruption, I recommend setting it up to reboot once per week to maintain
+       stability. To do that, login to LuCI and browse to System > Scheduled Tasks.
+       This page allows you to edit the crontab file. Add the following line to the
+       scheduled tasks textbox (i.e., crontab file),
+           0 3 * * 0 reboot
+       The first number denotes the minute (0-59). In this case, 0 represents the top of the hour.
+       The second number denotes the hour (0-23). In this case, 3 represents 3 AM.
+       The third number denotes the day of the month (1-31). In this case, * matches any day of the month, so this field is ignored.
+       The fourth number denotes the month of the year (1-12). In this case, * matches any day of the month, so this field is ignored.
+       The fifth number denotes the day of the week (0-6) beginning with Sunday. In this case, 0 represents Sunday.
+       The final item is the command to be run. The crontab runs with root privileges, so it has power to reboot the device.
+     
+     
+    H. Use alternate DNS servers
+    1. You may be interested to use alternate DNS servers instead of your default
+       ISP ones. To do this, open up your LuCI web gui and go to
+       Network > Interfaces > WAN > Edit > Advanced Settings. Uncheck the "Use DNS
+       servers advertised by peer" box, and then enter whichever servers you want in
+       the "Use custom DNS servers" box. Some recommendations include:
+           Level 3: 4.2.2.1 and 4.2.2.2
+           Google DNS: 8.8.8.8 and 8.8.4.4
+           OpenDNS: 208.67.222.222 and 208.67.220.220
+           DNS Advantage: 156.154.70.1 and 156.154.71.1
+       Also try GRC's DNS benchmark tool.
+       https://www.grc.com/dns/Benchmark.htm
+     
+     
+    I. Install more packages
+    1. You might want to install some packages to further enhance your router's
+       features. Useful packages might include:
+           - UPnP (luci-app-upnp, miniupnpd)
+           - Dynamic DNS (luci-app-ddns, ddns-scripts)
+     
+     
+    J. Other notes
+    1. Some people are having problems resolving hostnames from their internal
+    network. For instance, if they plug their network ethernet cable directly into
+    their computer, they can access hostname "example", but if they try to connect
+    to that hostname from their OpenWrt router, it doesn't work. Instead, they have
+    to use the whole domain name, "example.domain.com". To fix this, people have
+    been going to their LuCI web GUI, then to Network > DHCP and DNS. In "General
+    Settings", uncheck "Domain required", "Authoritative", and "Rebind protection".
+    Then in "Advanced Settings" uncheck "Filter private". I personally have this
+    hostname resolving problem, but unchecking these options didn't fix it. It seems
+    like it fixed a lot of other people's, though. Your mileage my vary.
+
