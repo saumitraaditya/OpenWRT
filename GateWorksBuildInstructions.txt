@@ -1,0 +1,56 @@
+mkdir libjingle; cd libjingle
+git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
+export JAVA_HOME=/usr/lib/jvm/default-java
+export PATH="$(pwd)/depot_tools:$PATH"
+export GYP_DEFINES="use_openssl=1"
+export GYP_DEFINES="$GYP_DEFINES target_arch=arm arm_version=6"
+gclient config --name=trunk http://webrtc.googlecode.com/svn/branches/3.52
+gclient sync --force
+grep -Ir --exclude=\*.{c,h} "../../../build/linux/pkg-config-wrapper" *
+# from trunk, after modifying path do again to download ssl
+gclient sync --force
+sed -i "s/'arm_float_abi%': 'soft',/'arm_float_abi%': 'hard',/g" build/common.gypi
+sed -i "s/'arm_fpu%': '',/'arm_fpu%': 'vfp',/g" build/common.gypi
+cd third_party/
+wget http://dev.gateworks.com/openwrt/latest/cns3xxx/OpenWrt-SDK-cns3xxx-for-linux-x86_64-gcc-4.8-linaro_uClibc-0.9.33.2.tar.bz2
+tar xvfj OpenWrt-SDK-cns3xxx-for-linux-x86_64-gcc-4.8-linaro_uClibc-0.9.33.2.tar.bz2 
+export OPENWRT_SDK=`pwd`/OpenWrt-SDK-cns3xxx-for-linux-x86_64-gcc-4.8-linaro_uClibc-0.9.33.2
+export STAGING_DIR=$OPENWRT_SDK/staging_dir
+export TOOLCHAIN=$STAGING_DIR/toolchain-arm_mpcore+vfp_gcc-4.8-linaro_uClibc-0.9.33.2_eabi
+export CC="$TOOLCHAIN/bin/arm-openwrt-linux-uclibcgnueabi-gcc"
+export CXX="$TOOLCHAIN/bin/arm-openwrt-linux-uclibcgnueabi-g++"
+export AR="$TOOLCHAIN/bin/arm-openwrt-linux-uclibcgnueabi-ar"
+export CC_host="gcc"
+export CXX_host="g++"
+cd $OPENWRT_SDK
+svn export svn://svn.openwrt.org/openwrt/branches/packages_12.09/libs/expat package/expat; make
+cp build_dir/target-arm_mpcore+vfp_uClibc-0.9.33.2_eabi/expat-2.0.1/.libs/libexpat.a $TOOLCHAIN/lib
+cp build_dir/target-arm_mpcore+vfp_uClibc-0.9.33.2_eabi/expat-2.0.1/lib/*.h $TOOLCHAIN/include/
+cp -r /usr/include/X11 $TOOLCHAIN/include/
+cd ../../
+# comment out latebindingsymbol in trun/talk/libjingle.gyp
+gclient runhooks --force
+sed -i 's/fstack-protector/fno-stack-protector/g' `find out/Release -name *.ninja`
+sed -i 's/fstack-protector/fno-stack-protector/g' `find out/Debug -name *.ninja`
+wget https://github.com/pstjuste/ipop-tincan/raw/75e2c5fae7b6375ef2ead4a93595275492a6a259/build/typedefs.h
+wget https://github.com/pstjuste/ipop-tincan/raw/75e2c5fae7b6375ef2ead4a93595275492a6a259/build/ipop-tincan.ninja
+move typedefs.h webrtc/typedefs.h
+move ipop-tincan.ninja out/Release/obj/talk/ipop-tincan.ninja
+ninja -C out/Release ipop-tincan
+
+
+
+
+grep -rnw 'trunk' -e "mhard-float"
+
+ grep --include=\*.{c,h} -rnw 'directory' -e "pattern"
+
+grep -rnw 'trunk' -e "-mfloat-abi=softfp" > softfp.txt
+
+sed -i 's/mfloat-abi=softfp/mfloat-abi=hard/g' `find trunk/out/Release -name *.ninja`
+
+find trunk/out/Release -type f -name *.ninja -exec sed -i 's/mfloat-abi=softfp/mfloat-abi=hard/g' {} +
+
+
+
+
