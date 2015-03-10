@@ -1,7 +1,7 @@
 Some useful links--
 
 1. Adding wireless card to board.
-
+http://trac.gateworks.com/wiki/OpenWrt/wireless
 
 2. Pierre's webrtc bug 
 https://code.google.com/p/webrtc/issues/detail?id=1759
