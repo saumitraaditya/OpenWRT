@@ -1,0 +1,122 @@
+### upgrade the system
+
+Make sure you can ssh to the router by ```root``` and type in the command:
+
+```bash
+cd /tmp
+wget http://downloads.openwrt.org/snapshots/trunk/ar71xx/openwrt-ar71xx-generic-mw4530r-v1-squashfs-sysupgrade.bin
+sysupgrade -v openwrt-ar71xx-generic-mw4530r-v1-squashfs-sysupgrade.bin
+```
+
+wait for the router to reboot and then ssh to it again. the password for root should keep the same.
+
+Reference: http://wiki.openwrt.org/doc/howto/generic.sysupgrade
+
+### install USB support
+
+Some packages need to be installed
+
+```bash
+opkg update
+opkg install kmod-usb-storage block-mount kmod-fs-ext4
+```
+
+Reference: http://wiki.openwrt.org/doc/howto/usb.storage
+
+### Mount / at USB for larger space
+
+```bash
+opkg update
+opkg install e2fsprogs
+mkfs.ext4 /dev/sda1  
+mkdir -p /mnt/sda1
+mount /dev/sda1 /mnt/sda1
+tar -C /overlay -cvf - . | tar -C /mnt/sda1 -xf -
+vi /etc/config/fstab
+```
+
+and make sure your fstab config file looks like
+
+```
+root@OpenWrt:~# cat /etc/config/fstab 
+config 'global'
+	option	anon_swap	'0'
+	option	anon_mount	'0'
+	option	auto_swap	'1'
+	option	auto_mount	'1'
+	option	delay_root	'5'
+	option	check_fs	'0'
+
+config mount
+	option target /overlay
+	option device /dev/sda1
+	option fstype ext4
+	option options rw,sync
+	option enabled 1
+	option enabled_fsck 0
+```
+
+you can run ```df``` to check, ```/dev/sda1``` should be mounted on ```/overlay``` like
+
+```
+root@OpenWrt:~# df
+Filesystem           1K-blocks      Used Available Use% Mounted on
+rootfs                 7730640     21676   7293220   0% /
+/dev/root                 1792      1792         0 100% /rom
+tmpfs                    63184       948     62236   2% /tmp
+/dev/sda1              7730640     21676   7293220   0% /overlay
+overlayfs:/overlay     7730640     21676   7293220   0% /
+tmpfs                      512         0       512   0% /dev
+```
+
+Reference: http://wiki.openwrt.org/doc/howto/extroot
+
+### install LUCI web UI
+
+```bash
+opkg update
+opkg install luci
+/etc/init.d/uhttpd enable
+/etc/init.d/uhttpd start
+```
+
+Reference: http://wiki.openwrt.org/doc/howto/luci.essentials
+
+### remote ssh security
+
+* disable root password access (via luci UI)
+* add ssh public key (via luci UI)
+* change ssh port to something other than the default port
+* create a new user for ssh access. NEVER use root for remote access
+
+```bash
+opkg update
+opkg install shadow-useradd
+useradd nicolaus
+passwd nicolaus
+mkdir /home/nicolaus
+chown nicolaus.nicolaus /home/nicolaus
+vi /etc/passwd
+   nicolaus:x:1000:1000:nicolaus:/home/nicolaus:/bin/ash
+```
+
+Open firewall port for remote ssh access.
+
+add this to your ```/etc/config/firewall```
+
+```
+config 'rule'
+        option 'target' 'ACCEPT'
+        option '_name' 'ssh'
+        option 'src' 'wan'
+        option 'proto' 'tcp'
+        option 'dest_port' '22'
+```
+
+change 22 to your ssh port.
+
+Reference: 
+
+* http://wiki.openwrt.org/doc/howto/secure.access
+* https://forum.openwrt.org/viewtopic.php?id=31951  
+* https://gist.githubusercontent.com/jiananlu/9258032/raw/c19856c1aec21f154d609f37f68ad321b238ca4b/gistfile1.md
